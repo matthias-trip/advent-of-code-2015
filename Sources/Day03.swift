@@ -2,103 +2,63 @@ import Algorithms
 import Foundation
 
 struct Day03: AdventDay {
+    
+    enum Instruction: String {
+        case north = "^"
+        case south = "v"
+        case east = ">"
+        case west = "<"
+    }
+    
+    struct House: Hashable {
+        var x: Int
+        var y: Int
+    }
+    
     var data: String
-    
-    private var symbols: Set<Point> = []
-    private var gears: Set<Point> = []
-    private var numbers: Set<Number> = []
-    
-    public struct Point: Hashable {
-        public let x, y: Int
-        
-        public init(_ x: Int, _ y: Int) {
-            self.x = x
-            self.y = y
-        }
-    }
-    
-    private struct Number: Hashable {
-        let value: Int
-        let start: Point
-        let length: Int
-        let neighbors: Set<Point>
-        
-        init(value: Int, start: Point, length: Int) {
-            self.value = value
-            self.start = start
-            self.length = length
-            neighbors = Set(
-                (start.y - 1 ... start.y + 1).flatMap { y in
-                    (start.x - 1 ... start.x + length).map { x in
-                        Point(x, y)
-                    }
-                }
-            )
-        }
-    }
+    var instructions: [Instruction]
     
     init(data: String) {
         self.data = data
+        self.instructions = self.data.compactMap { Instruction(rawValue: String($0)) }
+    }
+    
+    func part1() async throws -> Any {
+        let numberOfSantas = 1
+        return self.housesVisited(by: numberOfSantas)
+    }
+    
+    func part2() async throws -> Any {
+        let numberOfSantas = 2
+        return self.housesVisited(by: numberOfSantas)
+    }
+
+    private func housesVisited(by numberOfSantas: Int = 1) -> Int {
+        var currentHouseBySanta: [Int: House] = [:]
+        for santa in 0...numberOfSantas {
+            currentHouseBySanta[santa] = House(x: 0, y: 0)
+        }
+
+        var housesVisited = Set<House>()
+        housesVisited.insert(House(x: 0, y: 0)) // Always visit house 0,0
         
-        var symbols = Set<Point>()
-        var gears = Set<Point>()
-        var numbers = Set<Number>()
-        
-        let lines = self.data.components(separatedBy: "\n").filter { !$0.isEmpty }.enumerated()
-        for (y, line) in lines {
-            for (x, ch) in line.enumerated() {
-                if !(ch.isNumber || ch == ".") {
-                    symbols.insert(Point(x, y))
-                    if ch == "*" {
-                        gears.insert(Point(x, y))
-                    }
-                }
+        var santa = 0
+        for instruction in instructions {
+            switch instruction {
+            case .north:
+                currentHouseBySanta[santa]!.y += 1
+            case .east:
+                currentHouseBySanta[santa]!.x += 1
+            case .south:
+                currentHouseBySanta[santa]!.y -= 1
+            case .west:
+                currentHouseBySanta[santa]!.x -= 1
             }
             
-            let digits = line.enumerated().filter { $1.isNumber }
-            if digits.isEmpty { continue }
-            
-            var value = digits[0].element.wholeNumberValue!
-            var start = digits[0].offset
-            var prevOffset = start
-            var length = 1
-            for d in digits.dropFirst() {
-                if d.offset == prevOffset + 1 {
-                    value = value * 10 + d.element.wholeNumberValue!
-                    length += 1
-                    prevOffset = d.offset
-                } else {
-                    numbers.insert(Number(value: value, start: Point(start, y), length: length))
-                    value = d.element.wholeNumberValue!
-                    length = 1
-                    start = d.offset
-                    prevOffset = start
-                }
-            }
-            numbers.insert(Number(value: value, start: Point(start, y), length: length))
+            housesVisited.insert(currentHouseBySanta[santa]!)
+            santa = (santa + 1) % numberOfSantas
         }
-        
-        self.symbols = symbols
-        self.gears = gears
-        self.numbers = numbers
+
+        return housesVisited.count
     }
-    
-    
-    func part1() -> Any {
-        return numbers.filter { !symbols.intersection($0.neighbors).isEmpty }
-            .map { $0.value }
-            .reduce(0, +)
-    }
-    
-    func part2() -> Any {
-        let gearsFound = gears.map { gear in
-            numbers.filter { $0.neighbors.contains(gear) }
-        }
-        return gearsFound.filter { $0.count == 2 }
-            .map { number in
-                number.map { $0.value }.reduce(1, *)
-            }
-            .reduce(0, +)
-    }
-    
 }
